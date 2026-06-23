@@ -15,6 +15,7 @@ app.use(cors({
     "http://localhost:5175",
     "http://localhost:5176",
     "http://localhost:5177",
+    "https://cineverse-frontend.onrender.com",
   ],
   credentials: true,
 }));
