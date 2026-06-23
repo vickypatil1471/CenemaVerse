@@ -205,16 +205,11 @@ Protected routes → middleware/auth.js
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### 1. Prerequisites
 - Node.js 18+
 - MongoDB Atlas account (free tier works)
 - Razorpay account (free, test mode)
 
-### 1. Clone the repo
-```bash
-git clone https://github.com/Jineshraj/mern-movie-booking-app.git
-cd mern-movie-booking-app
-```
 
 ### 2. Configure environment variables
 Create `backend/.env`:
@@ -332,13 +327,3 @@ npm run dev
 - **Razorpay**: Switch from `rzp_test_` to `rzp_live_` keys for production.
 
 ---
-
-## 👤 Author
-
-**Jineshraj**
-- GitHub: [@Jineshraj](https://github.com/Jineshraj)
-- Project: [mern-movie-booking-app](https://github.com/Jineshraj/mern-movie-booking-app)
-
----
-
-> *Built as a learning project to master the MERN stack end-to-end — from database design to payment gateway integration.*
