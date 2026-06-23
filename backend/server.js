@@ -1,6 +1,17 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
+
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://cineverse-frontend.onrender.com"
+    ],
+    credentials: true,
+  })
+);
+
 const connectDB = require("./config/db");
 
 dotenv.config();
