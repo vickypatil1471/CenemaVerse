@@ -123,7 +123,7 @@ const handlePayment = async () => {
     }
 
     await axios.post(
-      "http://localhost:5000/api/bookings/netbanking",
+      "https://cenemaverse-1.onrender.com/api/bookings/netbanking",
       {
         movieId:
           movie._id || movie.id,

@@ -55,7 +55,7 @@ const SignupPage = () => {
     }
     setIsLoading(true);
     try {
-      await axios.post("http://localhost:5000/api/users", {
+      await axios.post("https://cenemaverse-1.onrender.com/api/users", {
         fullName: formData.fullName,
         username: formData.username,
         email: formData.email,
