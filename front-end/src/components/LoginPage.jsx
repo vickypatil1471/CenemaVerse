@@ -40,7 +40,7 @@ const LoginPage = () => {
     }
     setIsLoading(true);
     try {
-      const { data } = await axios.post("https://cenemaverse-2.onrender.com/login/api/users/login", {
+      const { data } = await axios.post("http://localhost:5000/api/users/login", {
         email: formData.email,
         password: formData.password,
       });

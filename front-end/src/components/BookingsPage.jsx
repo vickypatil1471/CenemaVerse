@@ -34,7 +34,7 @@ const BookingsPage = () => {
         const token = localStorage.getItem("cine_token");
         if (!token) return;
         
-        const { data } = await axios.get("https://cenemaverse-1.onrender.com/login/api/bookings/mybookings", {
+        const { data } = await axios.get("http://localhost:5000/api/bookings/mybookings", {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -99,7 +99,7 @@ const BookingsPage = () => {
             bookings.map((booking) => {
               const poster = booking.poster
               ? booking.poster.includes("uploads")
-              ? `https://cenemaverse-2.onrender.com/login/${booking.poster.replace(/^\/+/, "")}`
+              ? `http://localhost:5000/${booking.poster.replace(/^\/+/, "")}`
               : booking.poster
               : "";
               const isExpanded = expandedId === booking.bookingId;

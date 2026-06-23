@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const getApiBaseUrl = () => {
-  return import.meta.env.VITE_API_BASE_URL || "https://cenemaverse-2.onrender.com";
+  return import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 };
 
 const api = axios.create({

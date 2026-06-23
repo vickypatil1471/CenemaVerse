@@ -50,7 +50,7 @@ useEffect(() => {
     try {
       // FIRST TRY DATABASE MOVIE
       const { data } = await axios.get(
-        `https://cenemaverse-1.onrender.com/api/movies/${movieId}`
+        `http://localhost:5000/api/movies/${movieId}`
       );
 
       if (data) {
@@ -247,7 +247,7 @@ if (!movie) {
 }
 try {
   const { data } = await axios.post(
-    "https://cenemaverse-1.onrender.com/api/bookings",
+    "http://localhost:5000/api/bookings",
     {
       movieId: movie._id || movie.id,
       movieTitle: movie.title,
@@ -294,7 +294,7 @@ try {
           try {
             const verifyRes =
               await axios.post(
-                "https://cenemaverse-1.onrender.com/api/bookings/verify",
+                "http://localhost:5000/api/bookings/verify",
                 {
                   razorpay_order_id:
                     response.razorpay_order_id,
@@ -375,7 +375,7 @@ modal: {
 
     try {
       await axios.delete(
-        `https://cenemaverse-1.onrender.com/api/bookings/cancel/${data.booking._id}`,
+        `http://localhost:5000/api/bookings/cancel/${data.booking._id}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -431,7 +431,7 @@ const confirmNetBankingBooking =
         );
 
       await axios.post(
-        "https://cenemaverse-1.onrender.com/api/bookings/netbanking",
+        "http://localhost:5000/api/bookings/netbanking",
         {
           movieId:
             movie._id || movie.id,
