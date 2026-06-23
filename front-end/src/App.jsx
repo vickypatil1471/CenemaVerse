@@ -9,6 +9,7 @@ import Bookings from "./pages/Bookings";
 import Contacts from "./pages/Contacts";
 import MovieDetailsPage from "./pages/MovieDetailsPage";
 import SeatSelector from "./pages/SeatSelector";
+import NetBankingPage from "./pages/NetBankingPage";
 
 // ScrollToTop utility — from repo's App.jsx
 function ScrollToTop() {
@@ -33,6 +34,10 @@ const App = () => {
         <Route path="/contact" element={<Contacts />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
+<Route
+  path="/netbanking/:id/:slot"
+  element={<NetBankingPage />}
+/>       
       </Routes>
     </>
   );

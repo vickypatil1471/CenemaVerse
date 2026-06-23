@@ -1,9 +1,10 @@
 import React, { useState, useRef } from "react";
 import api from "../utils/api";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Film, Play, Star, Clock, Upload, Users, X, ImageIcon, Calendar, Plus, Loader2 } from "lucide-react";
 import { NamedUploader, Uploader } from "../components/Uploaders";
+
 
 const addMoviePageStyles = {
   mainContainer: "p-6 max-w-5xl mx-auto",
@@ -57,9 +58,11 @@ const addMoviePageStyles = {
 };
 
 
+
 export default function AddMoviePage() {
   // form state
   const [movieName, setMovieName] = useState("");
+  const [releaseDate, setReleaseDate] = useState("");
   const [categories, setCategories] = useState([]);
   const [poster, setPoster] = useState(null);
   const [posterPreview, setPosterPreview] = useState(null);
@@ -98,6 +101,9 @@ export default function AddMoviePage() {
 
   // auditorium state & available options
   const availableAuditoriums = ["Audi 1", "Audi 2", "Audi 3"];
+
+  
+
   const [auditorium, setAuditorium] = useState("Audi 1");
   const [customAuditorium, setCustomAuditorium] = useState("");
 
@@ -107,6 +113,24 @@ export default function AddMoviePage() {
 
   const availableCategories = ["Action", "Horror", "Comedy", "Adventure"];
 
+  //add
+  const fetchMovieRating = async (movieName) => {
+  try {
+    const response = await fetch(
+      `https://www.omdbapi.com/?t=${movieName}&apikey=928d46b9`
+    );
+
+    const data = await response.json();
+
+    if (data.imdbRating && data.imdbRating !== "N/A") {
+      setRating(Number(data.imdbRating));
+    }
+  } catch (error) {
+    console.log(error);
+  }
+};
+  
+  
   function toggleCategory(cat) {
     setCategories((prev) =>
       prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
@@ -124,6 +148,7 @@ export default function AddMoviePage() {
     e.target.value = null;
   };
 
+  
   const handleLtThumbnailChange = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -216,6 +241,9 @@ export default function AddMoviePage() {
     );
   };
 
+  
+
+
   // slots helpers
   function addSlot() {
     setSlots((s) => [
@@ -235,6 +263,7 @@ export default function AddMoviePage() {
   function resetForm() {
     setMovieName("");
     setCategories([]);
+    setReleaseDate("");
     setPoster(null);
     setPosterPreview(null);
     setTrailerUrl("");
@@ -289,6 +318,7 @@ export default function AddMoviePage() {
         (d) => d && (!d.name || !d.name.trim())
       );
       if (badSinger) return "Please add a name for every singer image.";
+
       return null;
     }
 
@@ -300,21 +330,28 @@ export default function AddMoviePage() {
     }
 
     if (movieType === "normal" || movieType === "featured") {
-      if (
-        Number.isNaN(Number(standardSeatPrice)) ||
-        Number(standardSeatPrice) <= 0
-      )
-        return "Please enter a valid standard seat price.";
-      if (
-        Number.isNaN(Number(reclinerSeatPrice)) ||
-        Number(reclinerSeatPrice) <= 0
-      )
-        return "Please enter a valid recliner seat price.";
 
-      const finalAuditorium =
-        auditorium === "Other" ? (customAuditorium || "").trim() : auditorium;
-      if (!finalAuditorium) return "Please select auditorium.";
-    }
+  if (
+    Number.isNaN(Number(standardSeatPrice)) ||
+    Number(standardSeatPrice) <= 0
+  )
+    return "Please enter a valid standard seat price.";
+
+  if (
+    Number.isNaN(Number(reclinerSeatPrice)) ||
+    Number(reclinerSeatPrice) <= 0
+  )
+    return "Please enter a valid recliner seat price.";
+
+  
+  const finalAuditorium =
+    auditorium === "Other"
+      ? (customAuditorium || "").trim()
+      : auditorium;
+
+  if (!finalAuditorium)
+    return "Please select auditorium.";
+}
 
     if (movieType === "normal" || movieType === "featured") {
       const badCast = castImages.find((c) => {
@@ -344,9 +381,62 @@ export default function AddMoviePage() {
     }
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    const error = validate();
+async function handleSubmit(e) {
+  e.preventDefault();
+
+  console.log("ADD MOVIE BUTTON CLICKED");
+
+  // BLOCK PAST SHOWTIMES
+  if (
+    movieType === "normal" ||
+    movieType === "featured"
+  ) {
+    const now = new Date();
+
+    for (const slot of slots) {
+
+      if (!slot.date || !slot.time) continue;
+
+      const slotDateTime = new Date(
+        `${slot.date} ${slot.time} ${slot.ampm}`
+      );
+
+      if (slotDateTime < now) {
+        toast.error(
+          "Past showtimes are not allowed."
+        );
+        return;
+      }
+    }
+  }
+
+if (movieType === "releaseSoon") {
+  if (!releaseDate) {
+    toast.error("Please select a release date.");
+    return;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const selectedDate = new Date(releaseDate);
+
+  if (selectedDate < today) {
+    toast.error(
+      "Release date cannot be in the past."
+    );
+    return;
+  }
+}
+
+  const error = validate();
+    
+
+if (error) {
+  console.log("VALIDATION ERROR:", error);
+  toast.error(error);
+  return;
+}
     if (error) return toast.error(error);
 
     setIsUploading(true);
@@ -413,6 +503,7 @@ export default function AddMoviePage() {
           : auditorium;
       form.append("auditorium", finalAuditorium);
 
+
       form.append(
         "cast",
         JSON.stringify(
@@ -443,12 +534,23 @@ export default function AddMoviePage() {
       );
       form.append("story", story || "");
 
+      form.append(
+  "releaseDate",
+  releaseDate || ""
+);
+
       appendFilesToForm(form, "castFiles", castImages);
       appendFilesToForm(form, "directorFiles", directorImages);
       appendFilesToForm(form, "producerFiles", producerImages);
     }
+    console.log("FORM SUBMIT STARTED");
+
+for (let pair of form.entries()) {
+  console.log(pair[0], pair[1]);
+}
     
     try {
+
       await api.post("/movies", form, {
         headers: {
           "Content-Type": "multipart/form-data"
@@ -457,14 +559,29 @@ export default function AddMoviePage() {
       toast.success("Movie added successfully!");
       resetForm();
     } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Failed to add movie.");
-    } finally {
+  console.error(err);
+  console.error("MOVIE ERROR:", err);
+  console.log("SERVER RESPONSE:", err.response?.data);
+
+  alert(
+  err.response?.data?.message ||
+  "Failed to add movie."
+);
+}
+ finally {
       setIsUploading(false);
     }
   }
 
   return (
+
+      <>
+      <ToastContainer
+      position="top-right"
+      autoClose={3000}
+      theme="dark"
+    />
+
      <div className={addMoviePageStyles.mainContainer}>
         <header className={addMoviePageStyles.header}>
           <h1
@@ -752,16 +869,23 @@ export default function AddMoviePage() {
                   <div className={addMoviePageStyles.inputContainer}>
                     <label className={addMoviePageStyles.label}>Movie Name</label>
                     <input
-                      value={movieName}
-                      onChange={(e) => setMovieName(e.target.value)}
-                      className={addMoviePageStyles.input}
-                      placeholder="Enter movie title"
-                    />
+  value={movieName}
+  onChange={(e) => {
+    setMovieName(e.target.value);
+
+    if (e.target.value.length > 2) {
+      fetchMovieRating(e.target.value);
+    }
+  }}
+  className={addMoviePageStyles.input}
+  placeholder="Enter movie title"
+/>
                   </div>
 
                   <div className={addMoviePageStyles.inputContainer}>
                     <label className={addMoviePageStyles.label}>Categories</label>
                     <div className={addMoviePageStyles.categoryContainer}>
+
                       {availableCategories.map((cat) => (
                         <button
                           type="button"
@@ -778,6 +902,24 @@ export default function AddMoviePage() {
                       ))}
                     </div>
                   </div>
+
+{movieType === "releaseSoon" && (
+  <div className={addMoviePageStyles.inputContainer}>
+    <label className={addMoviePageStyles.label}>
+      Release Date
+    </label>
+
+<input
+  type="date"
+  min={new Date().toISOString().split("T")[0]}
+  value={releaseDate}
+  onChange={(e) =>
+    setReleaseDate(e.target.value)
+  }
+  className={addMoviePageStyles.input}
+/>
+  </div>
+)}
 
                   {(movieType === "normal" || movieType === "featured") && (
                     <div className={addMoviePageStyles.gridCols3}>
@@ -811,21 +953,21 @@ export default function AddMoviePage() {
                       </div>
 
                       {/* AUDITORIUM SELECTOR */}
-                      <div>
-                        <label className={addMoviePageStyles.label}>Auditorium</label>
-                        <select
-                          value={auditorium}
-                          onChange={(e) => setAuditorium(e.target.value)}
-                          className={addMoviePageStyles.select}
-                        >
-                          {availableAuditoriums.map((a) => (
-                            <option value={a} key={a}>
-                              {a}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+<div>
+  <label className={addMoviePageStyles.label}>
+    Auditorium
+  </label>
+
+  <select
+    value={auditorium}
+    onChange={(e) => setAuditorium(e.target.value)}
+    className={addMoviePageStyles.select}
+  >
+    <option value="Audi 1">Audi 1</option>
+    <option value="Audi 2">Audi 2</option>
+    <option value="Audi 3">Audi 3</option>
+  </select>
+</div>                    </div>
                   )}
 
                   {movieType !== "releaseSoon" && (
@@ -955,22 +1097,31 @@ export default function AddMoviePage() {
                         className={addMoviePageStyles.slotItem}
                       >
                         <div className={addMoviePageStyles.slotGrid}>
-                          <input
-                            type="date"
-                            value={slot.date}
-                            onChange={(e) =>
-                              updateSlot(slot.id, "date", e.target.value)
-                            }
-                            className={addMoviePageStyles.slotInput}
-                          />
-                          <input
-                            type="time"
-                            value={slot.time}
-                            onChange={(e) =>
-                              updateSlot(slot.id, "time", e.target.value)
-                            }
-                            className={addMoviePageStyles.slotInput}
-                          />
+<input
+  type="date"
+  min={new Date().toISOString().split("T")[0]}
+  value={slot.date}
+  onChange={(e) =>
+    updateSlot(slot.id, "date", e.target.value)
+  }
+  className={addMoviePageStyles.slotInput}
+/>
+<input
+  type="time"
+  min={
+    slot.date ===
+    new Date().toISOString().split("T")[0]
+      ? new Date()
+          .toTimeString()
+          .slice(0, 5)
+      : undefined
+  }
+  value={slot.time}
+  onChange={(e) =>
+    updateSlot(slot.id, "time", e.target.value)
+  }
+  className={addMoviePageStyles.slotInput}
+/>
                           <select
                             value={slot.ampm}
                             onChange={(e) =>
@@ -1068,7 +1219,9 @@ export default function AddMoviePage() {
             >
               Reset
             </button>
+            
             <button
+            
               type="submit"
               disabled={isUploading}
               className={`${addMoviePageStyles.submitButton} flex items-center justify-center`}
@@ -1085,5 +1238,6 @@ export default function AddMoviePage() {
           </div>
         </form>
       </div>
+      </>
   );
 }

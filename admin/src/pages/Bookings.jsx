@@ -36,12 +36,25 @@ export default function Bookings() {
         const data = res?.data;
         let items = Array.isArray(data) ? data : (data?.items || data?.bookings || []);
         
-        const mapped = items.map(b => {
-          const norm = normalizeBookingData(b);
-          if(!norm) return null;
-          // Alias backwards compatibility specifically for this local UI layout structure
-          return { ...norm, movie: norm.movieTitle };
-        }).filter(Boolean);
+const mapped = items
+  .map((b) => {
+    const norm = normalizeBookingData(b);
+
+    if (!norm) return null;
+
+    return {
+      ...norm,
+      movie: norm.movieTitle,
+    };
+  })
+  .filter(
+    (b) =>
+      b &&
+      (
+        b.paymentStatus === "paid" ||
+        b.status === "paid"
+      )
+  );
 
 
         if (!cancelled) setBookings(mapped);

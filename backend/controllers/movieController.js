@@ -49,6 +49,72 @@ const createMovie = async (req, res) => {
     let posterUrl = req.files?.poster ? req.files.poster[0].path : "";
     const categories = b.categories ? JSON.parse(b.categories) : [];
     const slots = b.slots ? JSON.parse(b.slots) : [];
+
+    // CHECK FOR SHOWTIME CLASH IN SAME AUDITORIUM
+
+
+
+const selectedAudi = b.auditorium || "Audi 1";
+
+const newMovieDuration = Number(b.duration) || 0;
+
+const allMovies = await Movie.find({
+  auditorium: selectedAudi,
+});
+
+for (const slot of slots) {
+
+const slotDateTime = new Date(
+  `${slot.date} ${slot.time} ${slot.ampm}`
+);
+
+if (slotDateTime < new Date()) {
+  return res.status(400).json({
+    message:
+      "Cannot create showtime in the past.",
+  });
+}
+
+  const newStart = new Date(
+    `${slot.date} ${slot.time} ${slot.ampm}`
+  );
+
+  const newEnd = new Date(
+    newStart.getTime() +
+      newMovieDuration * 60000
+  );
+
+  for (const movie of allMovies) {
+
+    const existingDuration =
+      Number(movie.duration) || 0;
+
+    for (const existingSlot of movie.showtimes) {
+
+      const existingStart = new Date(
+        `${existingSlot.date} ${existingSlot.time} ${existingSlot.ampm}`
+      );
+
+      const existingEnd = new Date(
+        existingStart.getTime() +
+          existingDuration * 60000
+      );
+
+      const clash =
+        newStart < existingEnd &&
+        newEnd > existingStart;
+
+      if (clash) {
+        return res.status(400).json({
+          message:
+            `${selectedAudi} is occupied from ` +
+            `${existingSlot.time} ${existingSlot.ampm} ` +
+            `until movie ends.`,
+        });
+      }
+    }
+  }
+}
     const seatPrices = b.seatPrices ? JSON.parse(b.seatPrices) : { standard: 0, recliner: 0 };
     
     // Map actors, directors, producers w/ Avatar files
@@ -58,12 +124,34 @@ const createMovie = async (req, res) => {
     if (req.files?.directorFiles) directors = directors.map((c, i) => ({ ...c, avatarUrl: req.files.directorFiles[i]?.path || "" }));
     let producers = b.producers ? JSON.parse(b.producers) : [];
     if (req.files?.producerFiles) producers = producers.map((c, i) => ({ ...c, avatarUrl: req.files.producerFiles[i]?.path || "" }));
-    const movie = await Movie.create({
-      title: b.movieName, type: b.type || "normal", description: b.story || "", duration: Number(b.duration) || 0,
-      category: categories, posterUrl, trailerUrl: b.trailerUrl || "", videoUrl: b.videoUrl || "",
-      rating: Number(b.rating) || 7.5, seatPrices, auditorium: b.auditorium || "Audi 1",
-      cast, directors, producers, showtimes: slots, latestTrailer: b.latestTrailer ? JSON.parse(b.latestTrailer) : {}
-    });
+const movie = await Movie.create({
+
+ 
+  title: b.movieName,
+  releaseDate: b.releaseDate,
+  type: b.type || "normal",
+  description: b.story || "",
+  duration: Number(b.duration) || 0,
+
+  category: categories,
+  posterUrl,
+  trailerUrl: b.trailerUrl || "",
+  videoUrl: b.videoUrl || "",
+  rating: Number(b.rating) || 7.5,
+
+  auditorium: selectedAudi,
+
+  seatPrices,
+  cast,
+  directors,
+  producers,
+
+  showtimes: slots,
+
+  latestTrailer: b.latestTrailer
+    ? JSON.parse(b.latestTrailer)
+    : {},
+});
     res.status(201).json(movie);
   } catch (error) { res.status(500).json({ message: error.message }); }
 };

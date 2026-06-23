@@ -118,6 +118,7 @@ const Navbar = () => {
     localStorage.removeItem("isLoggedIn");
     localStorage.removeItem("userEmail");
     localStorage.removeItem("cine_user_email");
+    localStorage.removeItem("cine_token");
     setIsLoggedIn(false);
     setUserEmail("");
     window.location.href = "/login";

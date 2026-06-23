@@ -341,11 +341,19 @@ function Card({ item, onOpen, onDelete }) {
     item.latestTrailer?.thumbnail ||
     null;
 
-  if (posterOrThumb && !posterOrThumb.startsWith('http')) {
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-    const cleaned = posterOrThumb.startsWith('uploads/') ? posterOrThumb : `uploads/${posterOrThumb}`;
-    posterOrThumb = `${API_BASE}/${cleaned}`;
-  }
+if (posterOrThumb && !posterOrThumb.startsWith("http")) {
+
+  const API_BASE =
+    import.meta.env.VITE_API_BASE_URL ||
+    "http://localhost:5000";
+
+  const cleaned = posterOrThumb
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+
+  posterOrThumb =
+    `${API_BASE}/${cleaned}`;
+}
 
   return (
     <div

@@ -28,6 +28,7 @@ const userRouter = require("./routes/userRouter");
 const movieRouter = require("./routes/movieRouter");
 const bookingRouter = require("./routes/bookingRouter");
 
+
 // Routes
 app.use("/api/users", userRouter);
 app.use("/api/movies", movieRouter);

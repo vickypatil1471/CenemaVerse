@@ -7,30 +7,45 @@ import {
   Clock,
   Calendar,
   Play,
-  Users,
-  User,
   X,
 } from "lucide-react";
+
 import { movieDetailHStyles } from "../assets/dummyStyles";
 import api, { getApiBaseUrl } from "../utils/api";
 
-// ── Constants (repo snippet) ───────────────────────────────────────────────────
-const ROWS = [
-  { id: "A", type: "standard", count: 8 },
-  { id: "B", type: "standard", count: 8 },
-  { id: "C", type: "standard", count: 8 },
-  { id: "D", type: "recliner", count: 8 },
-  { id: "E", type: "recliner", count: 8 },
-];
-const TOTAL_SEATS = ROWS.reduce((s, r) => s + r.count, 0);
+import MOVIES_MAIN from "../assets/dummymdata";
+import MOVIES_FEATURED from "../assets/dummymoviedata";
 
-// ── Utility helpers (repo snippet) ────────────────────────────────────────────
+// NORMALIZE FEATURED MOVIES
+const MOVIES_FEATURED_NORMALISED = MOVIES_FEATURED.map((m) => ({
+  ...m,
+  image: m.img,
+}));
+
+// MERGE ALL DUMMY MOVIES
+const ALL_DUMMY_MOVIES = [
+  ...MOVIES_MAIN,
+  ...MOVIES_FEATURED_NORMALISED,
+];
+
+// ROWS
+
+
+
+
+// YOUTUBE HELPERS
 function extractYouTubeId(urlOrId) {
   if (!urlOrId) return null;
-  if (/^[A-Za-z0-9_-]{6,}$/.test(urlOrId)) return urlOrId;
+
+  if (/^[A-Za-z0-9_-]{6,}$/.test(urlOrId)) {
+    return urlOrId;
+  }
+
   const re =
     /(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|.*[?&]v=)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i;
+
   const m = urlOrId.match(re);
+
   return m ? m[1] : null;
 }
 
@@ -39,169 +54,238 @@ const getEmbedUrl = (id) =>
     ? `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&modestbranding=1`
     : null;
 
-const getParts = (dateLike, timeZone) => {
-  const dt = typeof dateLike === "string" ? new Date(dateLike) : dateLike;
-  const parts = new Intl.DateTimeFormat("en", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  }).formatToParts(dt);
-  const map = {};
-  for (const p of parts) {
-    if (p.type !== "literal") map[p.type] = p.value;
-  }
-  map.dayPeriod = map.dayPeriod || map.ampm || map.AMPM;
-  return map;
-};
+// FALLBACK AVATAR
 
-const formatDateKey = (dateLike, timeZone = "Asia/Kolkata") => {
-  const p = getParts(dateLike, timeZone);
-  return `${p.year}-${p.month}-${p.day}`;
-};
 
-const formatTimeInTZ = (dateLike, timeZone = "Asia/Kolkata") => {
-  const p = getParts(dateLike, timeZone);
-  const hour = String(Number(p.hour));
-  return `${hour}:${p.minute} ${String(p.dayPeriod ?? "").toUpperCase()}`;
-};
-
-// ── Fallback avatar (repo snippet) ────────────────────────────────────────────
-const FallbackAvatar = ({ className = "w-12 h-12" }) => (
-  <div
-    className={`${className} bg-gray-700 rounded-full flex items-center justify-center text-sm text-gray-300`}
-  >
-    ?
-  </div>
-);
-
-// ── Main Component ─────────────────────────────────────────────────────────────
 export default function MovieDetailsPage() {
   const { id } = useParams();
+
   const navigate = useNavigate();
 
   const [movie, setMovie] = useState(null);
+
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api.get(`/movies/${id}`)
-      .then(res => {
-         setMovie(res.data);
-      })
-      .catch(err => {
-         console.error(err);
-      })
-      .finally(() => {
-         setLoading(false);
-      });
-  }, [id]);
-
-  // Trailer state
   const [showTrailer, setShowTrailer] = useState(false);
+
   const [selectedTrailerId, setSelectedTrailerId] = useState(null);
+
   const [selectedMovie, setSelectedMovie] = useState(null);
 
-  // Showtime state
   const [selectedDay, setSelectedDay] = useState(0);
+
   const [selectedTime, setSelectedTime] = useState(null);
 
-  // ── Runtime Mapping: showtimeDays useMemo (Mongoose format) ──────────────────────
+  // FETCH MOVIE
+  useEffect(() => {
+    const fetchMovie = async () => {
+      try {
+        // TRY BACKEND FIRST
+        const res = await api.get(`/movies/${id}`);
+
+        setMovie(res.data);
+      } catch (err) {
+        console.log("Backend movie not found. Trying dummy movie...");
+
+        // TRY DUMMY MOVIES
+        const dummyMovie = ALL_DUMMY_MOVIES.find(
+          (m) => String(m.id) === String(id)
+        );
+
+        if (dummyMovie) {
+          setMovie(dummyMovie);
+        } else {
+          setMovie(null);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMovie();
+  }, [id]);
+
+  // SHOWTIMES
   const showtimeDays = useMemo(() => {
-    if (!movie || !movie.showtimes) return [];
-    
-    const slotsByDate = {};
-    movie.showtimes.forEach(slot => {
-        if (!slotsByDate[slot.date]) slotsByDate[slot.date] = [];
-        slotsByDate[slot.date].push(slot);
-    });
+    if (!movie) return [];
 
-    return Object.keys(slotsByDate).sort().map(key => {
-        const [yy, mm, dd] = key.split("-").map(Number);
-        const asDate = new Date(Date.UTC(yy, mm - 1, dd));
-        const shortDay = new Intl.DateTimeFormat("en-US", {
-          weekday: "short", timeZone: "UTC"
-        }).format(asDate);
-        const dateStr = new Intl.DateTimeFormat("en-US", {
-          month: "short", day: "numeric", timeZone: "UTC"
-        }).format(asDate);
+    // DUMMY MOVIE SUPPORT
+    if (movie.slots) {
+      const grouped = {};
 
-        const showtimes = slotsByDate[key].map(slot => {
-             // Rebuild a JS valid Date simulating local ISO layouts
-             const synDate = new Date(`${slot.date} ${slot.time} ${slot.ampm}`);
-             const displayTime = `${slot.time} ${slot.ampm}`;
-             return {
-                 time: displayTime,
-                 datetime: !isNaN(synDate.getTime()) ? synDate.toISOString() : slot.date, 
-                 audi: movie.auditorium || "Audi 1",
-                 bookedCount: slot.bookedSeats?.length || 0
-             };
+      movie.slots.forEach((slot) => {
+        const dateObj = new Date(slot.time);
+
+        const dateKey = dateObj.toISOString().split("T")[0];
+
+        if (!grouped[dateKey]) {
+          grouped[dateKey] = [];
+        }
+
+        grouped[dateKey].push({
+          time: dateObj.toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+
+          datetime: slot.time,
+
+          audi: slot.audi,
+
+          bookedCount: 0,
         });
-        
-        return { date: key, shortDay, dateStr, showtimes };
-    });
+      });
+
+      return Object.keys(grouped).map((dateKey) => {
+        const dateObj = new Date(dateKey);
+
+        return {
+          date: dateKey,
+
+          shortDay: dateObj.toLocaleDateString("en-US", {
+            weekday: "short",
+          }),
+
+          dateStr: dateObj.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          }),
+
+          showtimes: grouped[dateKey],
+        };
+      });
+    }
+
+    // BACKEND MOVIE SUPPORT
+    if (movie.showtimes) {
+      const slotsByDate = {};
+
+      movie.showtimes.forEach((slot) => {
+        if (!slotsByDate[slot.date]) {
+          slotsByDate[slot.date] = [];
+        }
+
+        slotsByDate[slot.date].push(slot);
+      });
+
+      return Object.keys(slotsByDate)
+        .sort()
+        .map((key) => {
+          const [yy, mm, dd] = key.split("-").map(Number);
+
+          const asDate = new Date(Date.UTC(yy, mm - 1, dd));
+
+          const shortDay = new Intl.DateTimeFormat("en-US", {
+            weekday: "short",
+            timeZone: "UTC",
+          }).format(asDate);
+
+          const dateStr = new Intl.DateTimeFormat("en-US", {
+            month: "short",
+            day: "numeric",
+            timeZone: "UTC",
+          }).format(asDate);
+
+          const showtimes = slotsByDate[key].map((slot) => {
+            const synDate = new Date(
+  `${slot.date} ${slot.time} ${slot.ampm}`
+);
+
+const isExpired =
+  synDate.getTime() < new Date().getTime();
+
+return {
+  time: `${slot.time} ${slot.ampm}`,
+  datetime: synDate.toISOString(),
+  audi: movie.auditorium || "Audi 1",
+  bookedCount: slot.bookedSeats?.length || 0,
+  expired: isExpired,
+};
+          });
+
+          return {
+            date: key,
+            shortDay,
+            dateStr,
+            showtimes,
+          };
+        });
+    }
+
+    return [];
   }, [movie]);
 
-  // ── Repo snippet: getBookedCountFor with audi + legacy fallback ────────────
-  const getBookedCountFor = (datetime, audi = "Audi 1") => {
-    // Rely exclusively on API fetched payload hooks! Local storage legacy simulations wiped cleanly
-    if (!movie || !movie.showtimes) return 0;
-    const allCount = showtimeDays.reduce((acc, curr) => {
-         const slot = curr.showtimes.find(s => s.datetime === datetime);
-         if (slot) return slot.bookedCount;
-         return acc;
-    }, 0);
-    return allCount;
-  };
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // TRAILER
   const openTrailer = (movieObj) => {
     const ytId = extractYouTubeId(
-      movieObj?.trailerUrl || 
-      movieObj?.trailer || 
-      movieObj?.latestTrailer?.videoId || 
-      ""
+      movieObj?.trailerUrl ||
+        movieObj?.trailer ||
+        movieObj?.latestTrailer?.videoId ||
+        ""
     );
+
     if (!ytId) {
       toast.info("Trailer not available for this movie.");
       return;
     }
+
     setSelectedMovie(movieObj);
+
     setSelectedTrailerId(ytId);
+
     setShowTrailer(true);
   };
 
   const closeTrailer = () => {
     setShowTrailer(false);
+
     setSelectedTrailerId(null);
+
     setSelectedMovie(null);
   };
 
+  // SELECT TIME
   const handleTimeSelect = (datetime) => {
     setSelectedTime((prev) => (prev === datetime ? null : datetime));
   };
 
+  // BOOK NOW
   const handleBookNow = () => {
     if (!selectedTime) {
       toast.error("Please select a showtime first.");
+
       return;
     }
-    navigate(`/seat/${movie._id}/${encodeURIComponent(selectedTime)}`);
+
+    const movieRouteId = movie?.id || movie?._id;
+
+    navigate(
+      `/seat/${movieRouteId}/${encodeURIComponent(selectedTime)}`
+    );
   };
 
-  // ── Not found ─────────────────────────────────────────────────────────────
+  // LOADING
   if (loading) {
-     return <div className="min-h-screen bg-[#0a0a0a] text-white flex items-center justify-center">Loading movie details...</div>;
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        Loading movie details...
+      </div>
+    );
   }
 
+  // NOT FOUND
   if (!movie) {
     return (
       <div className={movieDetailHStyles.notFoundContainer}>
         <div className={movieDetailHStyles.notFoundContent}>
-          <p className={movieDetailHStyles.notFoundTitle}>Movie not found.</p>
-          <Link to="/movies" className={movieDetailHStyles.notFoundLink}>
+          <p className={movieDetailHStyles.notFoundTitle}>
+            Movie not found.
+          </p>
+
+          <Link
+            to="/movies"
+            className={movieDetailHStyles.notFoundLink}
+          >
             ← Back to Movies
           </Link>
         </div>
@@ -211,10 +295,18 @@ export default function MovieDetailsPage() {
 
   return (
     <div className={movieDetailHStyles.pageContainer}>
-      <ToastContainer position="top-right" autoClose={3000} theme="dark" />
+<div className="fixed top-0 left-0 w-96 h-96 bg-red-600/10 blur-[150px] rounded-full pointer-events-none"></div>
+
+<div className="fixed bottom-0 right-0 w-96 h-96 bg-blue-600/10 blur-[150px] rounded-full pointer-events-none"></div>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        theme="dark"
+      />
+
       <style>{movieDetailHStyles.customCSS}</style>
 
-      {/* ── Trailer Modal (repo snippet) ───────────────────────────────────── */}
+      {/* TRAILER MODAL */}
       {showTrailer && selectedTrailerId && (
         <div className={movieDetailHStyles.trailerModal}>
           <div
@@ -224,19 +316,19 @@ export default function MovieDetailsPage() {
             <button
               onClick={closeTrailer}
               className={movieDetailHStyles.closeButton}
-              aria-label="Close trailer"
             >
               <X size={36} />
             </button>
+
             <div className={movieDetailHStyles.trailerIframe}>
               <iframe
                 key={selectedTrailerId}
                 width="100%"
                 height="100%"
                 src={getEmbedUrl(selectedTrailerId)}
-                title={`${selectedMovie?.title || "Trailer"} Trailer`}
+                title="Trailer"
                 frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="autoplay; encrypted-media"
                 allowFullScreen
                 className={movieDetailHStyles.iframe}
               />
@@ -246,306 +338,375 @@ export default function MovieDetailsPage() {
       )}
 
       <div className={movieDetailHStyles.mainContainer}>
-        {/* Header */}
+
+        {/* HEADER */}
         <div className={movieDetailHStyles.headerContainer}>
-          <Link to="/movies" className={movieDetailHStyles.backButton}>
+<button
+  onClick={() => navigate("/movies")}
+  className={movieDetailHStyles.backButton}
+>
             <ArrowLeft size={18} />
-            <span className={movieDetailHStyles.backButtonText}>Back</span>
-          </Link>
-        </div>
 
-        {/* Title + Meta */}
-        <div className={movieDetailHStyles.titleContainer}>
-          <h1
-            className={movieDetailHStyles.movieTitle}
-            style={{
-              fontFamily: "'Cinzel', 'Times New Roman', serif",
-              textShadow: "0 4px 20px rgba(220, 38, 38, 0.6)",
-              letterSpacing: "0.08em",
-            }}
-          >
-            {movie.title}
-          </h1>
-          <div className={movieDetailHStyles.movieInfoContainer}>
-            <span className={movieDetailHStyles.rating}>
-              <Star className={movieDetailHStyles.ratingIcon} />
-              {movie.rating}/10
+            <span className={movieDetailHStyles.backButtonText}>
+              Back
             </span>
-            <span className={movieDetailHStyles.duration}>
-              <Clock className={movieDetailHStyles.durationIcon} />
-              {movie.duration}
-            </span>
-            <span className={movieDetailHStyles.genre}>{movie.genre}</span>
-          </div>
+          </button>
         </div>
 
-        {/* ── Rule 4: Layout — poster LEFT, showtimes+cast RIGHT ────────────── */}
-        <div className={movieDetailHStyles.mainGrid}>
-          {/* LEFT — Poster */}
-          <div className={movieDetailHStyles.posterContainer}>
-            <div className={movieDetailHStyles.posterCard}>
-              <div
-                className={movieDetailHStyles.posterImageContainer}
-                style={{ maxWidth: "320px" }}
-              >
-                <img
-                  src={(() => {
-                    const raw = movie.posterUrl || "";
-                    if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-                    const cleaned = raw.startsWith("uploads/") ? raw : `uploads/${raw}`;
-                    return `${getApiBaseUrl()}/${cleaned}`;
-                  })()}
-                  alt={movie.title}
-                  loading="eager"
-                  className={movieDetailHStyles.posterImage}
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src =
-                      "https://via.placeholder.com/320x480?text=No+Image";
-                  }}
-                />
-              </div>
 
-              <button
-                onClick={() => openTrailer(movie)}
-                className={movieDetailHStyles.trailerButton}
-                aria-label="Watch trailer"
-              >
-                <Play size={18} />
-                <span>Watch Trailer</span>
-              </button>
-            </div>
-          </div>
+{/* MAIN GRID */}
+<div className={movieDetailHStyles.mainGrid}>
 
-          {/* RIGHT — Showtimes + Cast (both in same column per Rule 4) */}
-          <div className={movieDetailHStyles.showtimesContainer}>
+  {/* POSTER */}
+  <div className={movieDetailHStyles.posterContainer}>
+    <div className={movieDetailHStyles.posterCard}>
 
-            {/* Showtimes card */}
-            <div className={movieDetailHStyles.showtimesCard}>
-              <h3
-                className={movieDetailHStyles.showtimesTitle}
-                style={{ fontFamily: "'Cinzel', serif" }}
-              >
-                <Calendar className={movieDetailHStyles.showtimesTitleIcon} />
-                <span>Showtimes</span>
-              </h3>
+      {/* Movie Title */}
+      <h2 className="text-4xl font-bold text-white text-center mb-5">
+        {movie.title}
+      </h2>
 
-              {/* Day selector */}
-              <div className={movieDetailHStyles.daySelection}>
-                {showtimeDays.length ? (
-                  showtimeDays.map((day, index) => (
-                    <button
-                      key={day.date}
-                      onClick={() => {
-                        setSelectedDay(index);
-                        setSelectedTime(null);
-                      }}
-                      className={`${movieDetailHStyles.dayButton} ${
-                        selectedDay === index
-                          ? movieDetailHStyles.dayButtonSelected
-                          : movieDetailHStyles.dayButtonDefault
-                      }`}
-                      aria-pressed={selectedDay === index}
-                    >
-                      <div className={movieDetailHStyles.dayName}>
-                        {day.shortDay}
-                      </div>
-                      <div className={movieDetailHStyles.dayDate}>
-                        {day.dateStr}
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="text-gray-400 text-sm px-2">
-                    No showtime dates available
-                  </div>
-                )}
-              </div>
-
-              {/* Showtime grid */}
-              <div className={movieDetailHStyles.showtimesGrid}>
-                {showtimeDays[selectedDay]?.showtimes?.length ? (
-                  showtimeDays[selectedDay].showtimes.map((showtime, index) => {
-                    const bookedCount = getBookedCountFor(
-                      showtime.datetime,
-                      showtime.audi
-                    );
-                    const isSoldOut = bookedCount >= TOTAL_SEATS;
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => handleTimeSelect(showtime.datetime)}
-                        className={`${movieDetailHStyles.showtimeButton} ${
-                          selectedTime === showtime.datetime
-                            ? movieDetailHStyles.showtimeButtonSelected
-                            : movieDetailHStyles.showtimeButtonDefault
-                        }`}
-                        title={
-                          isSoldOut
-                            ? "All seats booked for this showtime"
-                            : `Seats available: ${Math.max(
-                                0,
-                                TOTAL_SEATS - bookedCount
-                              )}`
-                        }
-                        aria-disabled={isSoldOut}
-                      >
-                        <span>{showtime.time}</span>
-                        {isSoldOut && (
-                          <span className={movieDetailHStyles.soldOutBadge}>
-                            Sold Out
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className={movieDetailHStyles.noShowtimes}>
-                    No showtimes available for the selected date
-                  </div>
-                )}
-              </div>
-
-              {/* Book Now — only shown when a time is selected */}
-              {selectedTime && (
-                <div className={movieDetailHStyles.bookNowContainer}>
-                  <button
-                    onClick={handleBookNow}
-                    className={movieDetailHStyles.bookNowButton}
-                    aria-label="Proceed to seat selection"
-                  >
-                    Proceed to Seat Selection
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Cast card — inside right column, below showtimesCard */}
-            <div className={movieDetailHStyles.castCard}>
-              <h3
-                className={movieDetailHStyles.castTitle}
-                style={{ fontFamily: "'Cinzel', serif" }}
-              >
-                <Users className={movieDetailHStyles.castTitleIcon} />
-                <span>Cast</span>
-              </h3>
-
-              <div className={movieDetailHStyles.castGrid}>
-                {movie.cast?.length ? (
-                  movie.cast.map((c, idx) => (
-                    <div key={idx} className={movieDetailHStyles.castMember}>
-                      <div className={movieDetailHStyles.castImageContainer}>
-                        {(() => {
-                          const castImgRaw = c.avatarUrl || c.img || c.image || c.file || c.url || null;
-                          if (castImgRaw) {
-                            const castImgSrc = castImgRaw.startsWith("http")
-                              ? castImgRaw
-                              : `${getApiBaseUrl()}/uploads/${castImgRaw.replace(/^\/?(uploads\/)?/, "")}`;
-                            return (
-                              <img
-                                src={castImgSrc}
-                                alt={c.name}
-                                loading="lazy"
-                                className={movieDetailHStyles.castImage}
-                                onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "https://via.placeholder.com/80?text=A"; }}
-                              />
-                            );
-                          }
-                          return <FallbackAvatar className="w-16 h-16 sm:w-20 sm:h-20 mx-auto" />;
-                        })()}
-                      </div>
-                      <div className={movieDetailHStyles.castName}>{c.name}</div>
-                      <div className={movieDetailHStyles.castRole}>{c.role}</div>
-                    </div>
-                  ))
-                ) : (
-                  <div className={movieDetailHStyles.noCastMessage}>
-                    No cast data available
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+      {/* Poster */}
+      <div
+        className={`${movieDetailHStyles.posterImageContainer} relative`}
+      >
+        {/* Rating Badge */}
+        <div className="absolute top-3 right-3 z-10 bg-black/80 text-yellow-400 px-3 py-1 rounded-full font-semibold text-sm">
+          ⭐ {movie.rating}/10
         </div>
 
-        {/* Story — full width below grid */}
-        <div className={movieDetailHStyles.storyCard}>
-          <h2
-            className={movieDetailHStyles.storyTitle}
-            style={{ fontFamily: "'Cinzel', serif" }}
+        <img
+          src={
+            movie.image ||
+            movie.img ||
+            (movie.posterUrl
+              ? `${getApiBaseUrl()}/${movie.posterUrl}`
+              : "https://via.placeholder.com/320x480?text=No+Image")
+          }
+          alt={movie.title}
+          className={`${movieDetailHStyles.posterImage} transition-all duration-300 hover:scale-[1.02]`}
+        />
+      </div>
+<div className="text-center mt-4">
+  <h3 className="text-xl font-bold text-white">
+    {movie.title}
+  </h3>
+
+  <p className="text-gray-400 text-sm mt-1">
+{Array.isArray(movie.category)
+  ? movie.category.join(" • ")
+  : movie.category}
+  </p>
+</div>
+  
+      {/* Movie Info */}
+      <div className="flex justify-center gap-2 mt-4 flex-wrap">
+        <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-sm">
+          ⭐ {movie.rating}/10
+        </span>
+
+        <span className="bg-red-500/20 text-red-400 px-3 py-1 rounded-full text-sm">
+          ⏱ {movie.duration} Min
+        </span>
+
+ {(Array.isArray(movie.category)
+  ? movie.category
+  : [movie.category]
+).slice(0, 2).map((cat, index) => (
+          <span
+            key={index}
+            className="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-sm"
           >
-            Story
-          </h2>
-          <p className={movieDetailHStyles.storyText}>{movie.description || movie.story || movie.synopsis || "No story available."}</p>
-        </div>
+            {cat}
+          </span>
+        ))}
+      </div>
 
-        {/* Director & Producer — full width below story */}
-        <div className={movieDetailHStyles.crewGrid}>
-          {/* Director */}
-          <div className={movieDetailHStyles.crewCard}>
-            <div className={movieDetailHStyles.crewTitle}>
-              <User className={movieDetailHStyles.crewIcon} />
-              <h3 style={{ fontFamily: "'Cinzel', serif" }}>Director</h3>
-            </div>
-            <div className={movieDetailHStyles.crewContent}>
-              {(() => {
-                const directors = Array.isArray(movie.directors)
-                  ? movie.directors
-                  : Array.isArray(movie.director)
-                  ? movie.director
-                  : movie.director
-                  ? [movie.director]
-                  : [];
-                return (
-                  <div className={movieDetailHStyles.crewGridInner}>
-                    {directors.length ? (
-                      directors.slice(0, 2).map((d, i) => (
-                        <div key={i} className="flex flex-col items-center">
-                          {(() => {
-                            const raw = d?.avatarUrl || d?.img || d?.image || null;
-                            if (raw) {
-                              const src = raw.startsWith("http") ? raw : `${getApiBaseUrl()}/uploads/${raw.replace(/^\/?(uploads\/)?/, "")}`;
-                              return <img src={src} alt={d.name || `Director ${i+1}`} loading="lazy" className={movieDetailHStyles.crewImage} onError={(e) => { e.currentTarget.onerror=null; e.currentTarget.src="https://via.placeholder.com/96?text=D"; }} />;
-                            }
-                            return <div className={movieDetailHStyles.fallbackAvatar}>?</div>;
-                          })()}
-                          <div className={movieDetailHStyles.crewName}>{d?.name ?? "N/A"}</div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="flex flex-col items-center">
-                        <div className={movieDetailHStyles.fallbackAvatar}>?</div>
-                        <div className={movieDetailHStyles.crewName}>N/A</div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
+      {/* Trailer Button */}
+      <button
+        onClick={() => openTrailer(movie)}
+        className={`${movieDetailHStyles.trailerButton} mt-5`}
+      >
+        <Play size={18} />
+        <span>Watch Trailer</span>
+      </button>
+
+    </div>
+  </div>
+
+{/* SHOWTIMES */}
+<div className={movieDetailHStyles.showtimesContainer}>
+  <div
+    className={`${movieDetailHStyles.showtimesCard} p-8`}
+  >
+    <h3 className="flex items-center gap-3 text-4xl font-bold text-red-300 mb-8">
+      <Calendar size={34} />
+      Showtimes
+    </h3>
+
+    {/* DAY SELECTOR */}
+    <div className="flex flex-wrap gap-4 mb-8">
+      {showtimeDays.map((day, index) => (
+        <button
+          key={day.date}
+          onClick={() => {
+            setSelectedDay(index);
+            setSelectedTime(null);
+          }}
+          className={`
+            px-6 py-4 rounded-2xl
+            transition-all duration-300
+            ${
+              selectedDay === index
+                ? "bg-red-600 text-white shadow-lg shadow-red-600/30 scale-105"
+                : "bg-black/40 border border-white/10 text-gray-300 hover:border-red-500"
+            }
+          `}
+        >
+          <div className="font-bold text-lg">
+            {day.shortDay}
           </div>
 
-          {/* Producer */}
-          <div className={movieDetailHStyles.crewCard}>
-            <div className={movieDetailHStyles.crewTitle}>
-              <User className={movieDetailHStyles.crewIcon} />
-              <h3 style={{ fontFamily: "'Cinzel', serif" }}>Producer</h3>
-            </div>
-            <div className={movieDetailHStyles.crewContent}>
-              {(() => {
-                const producer = movie.producers?.[0] || movie.producer || null;
-                const raw = producer?.avatarUrl || producer?.img || producer?.image || null;
-                if (raw) {
-                  const src = raw.startsWith("http") ? raw : `${getApiBaseUrl()}/uploads/${raw.replace(/^\/?(uploads\/)?/, "")}`;
-                  return <img src={src} alt={producer.name} loading="lazy" className={movieDetailHStyles.crewImage} onError={(e) => { e.currentTarget.onerror=null; e.currentTarget.src="https://via.placeholder.com/96?text=P"; }} />;
-                }
-                return <FallbackAvatar className="w-20 h-20 sm:w-24 sm:h-24 mb-3 sm:mb-4" />;
-              })()}
-              <div className={movieDetailHStyles.crewName}>
-                {(movie.producers?.[0] || movie.producer)?.name ?? "N/A"}
-              </div>
-            </div>
+          <div className="text-sm">
+            {day.dateStr}
           </div>
+        </button>
+      ))}
+    </div>
+
+    {/* SHOWTIME BUTTONS */}
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {showtimeDays[selectedDay]?.showtimes?.map(
+        (showtime, index) => (
+<button
+  key={index}
+  disabled={showtime.expired}
+  onClick={() =>
+    !showtime.expired &&
+    handleTimeSelect(showtime.datetime)
+  }
+  className={`
+    px-8 py-4 rounded-xl font-semibold
+    ${
+      showtime.expired
+        ? "bg-gray-800 text-gray-500 cursor-not-allowed"
+        : selectedTime === showtime.datetime
+        ? "bg-red-600 text-white"
+        : "bg-[#111827] text-white"
+    }
+  `}
+>
+  {showtime.expired ? (
+    <div>
+      <div>{showtime.time}</div>
+      <div className="text-xs">
+        Show Ended
+      </div>
+    </div>
+  ) : (
+    showtime.time
+  )}
+</button>
+        )
+      )}
+    </div>
+
+    {/* SELECTED SHOWTIME */}
+{/* SELECTED SHOWTIME */}
+{selectedTime && (
+  <div className="mt-8 p-6 rounded-2xl bg-gradient-to-r from-red-900/20 to-red-600/10 border border-red-500/20 text-center">
+
+    <p className="text-red-300 font-semibold text-lg flex items-center justify-center gap-2">
+      🎟 Selected Showtime
+    </p>
+
+    <p className="text-white text-2xl font-bold mt-3">
+      {new Date(selectedTime).toLocaleString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })}
+    </p>
+
+  </div>
+)}
+
+    {/* BOOK BUTTON */}
+    {selectedTime && (
+      <div className="mt-6">
+        <button
+          onClick={handleBookNow}
+          className="
+            w-full
+            bg-red-600
+            hover:bg-red-700
+            text-white
+            font-bold
+            py-4
+            rounded-2xl
+            transition-all
+            duration-300
+            shadow-lg
+            shadow-red-600/20
+          "
+        >
+          Proceed to Seat Selection
+        </button>
+      </div>
+    )}
+  </div>
+</div>
+
+</div>
+      
+{/* STORY */}
+<div className="mt-10 rounded-3xl overflow-hidden border border-white/10 bg-[#0B1120]">
+
+  <div className="bg-gradient-to-r from-red-600/20 to-transparent px-8 py-5 border-b border-white/10">
+    <h2 className="text-3xl font-bold text-white">
+       Story
+    </h2>
+  </div>
+
+  <div className="p-8">
+    <p className="text-gray-300 text-lg leading-9">
+      {movie.description ||
+        movie.story ||
+        movie.synopsis ||
+        "No story available."}
+    </p>
+  </div>
+
+</div>
+
+{/* Info */}
+<div className={movieDetailHStyles.storyCard}>
+  <h2 className="text-4xl text-center font-bold text-red-300 mb-8">
+    Movie Information
+  </h2>
+
+  <div className="grid md:grid-cols-4 gap-4">
+
+    <div className="bg-black/40 p-5 rounded-2xl text-center">
+      <h3 className="text-red-400">Duration</h3>
+      <p className="text-white text-xl font-bold">
+        {movie.duration} Min
+      </p>
+    </div>
+
+    <div className="bg-black/40 p-5 rounded-2xl text-center">
+      <h3 className="text-red-400">Rating</h3>
+      <p className="text-white text-xl font-bold">
+        {movie.rating}/10
+      </p>
+    </div>
+
+    <div className="bg-black/40 p-5 rounded-2xl text-center">
+      <h3 className="text-red-400">Auditorium</h3>
+      <p className="text-white text-xl font-bold">
+        {movie.auditorium}
+      </p>
+    </div>
+
+    <div className="bg-black/40 p-5 rounded-2xl text-center">
+      <h3 className="text-red-400">Category</h3>
+      <p className="text-white text-xl font-bold">
+{Array.isArray(movie.category)
+  ? movie.category.join(", ")
+  : movie.category}
+      </p>
+    </div>
+
+  </div>
+</div>
+
+{/* CAST */}
+{movie.cast?.length > 0 && (
+  <div className={movieDetailHStyles.storyCard}>
+    <h2 className={movieDetailHStyles.storyTitle}>
+      Cast
+    </h2>
+
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+      {movie.cast.map((person, index) => (
+        <div
+          key={index}
+          className="bg-black/40 border border-red-500/20 rounded-2xl p-4 text-center hover:scale-105 transition-all duration-300"
+        >
+          <img
+            src={`${getApiBaseUrl()}/${person.avatarUrl}`}
+            alt={person.name}
+            className="w-28 h-28 rounded-full object-cover mx-auto border-4 border-red-500 shadow-lg shadow-red-500/30"
+          />
+
+          <h4 className="text-white mt-2">
+            {person.name}
+          </h4>
+
+          <p className="text-gray-400 text-sm">
+            {person.role}
+          </p>
         </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* DIRECTORS */}
+{movie.directors?.length > 0 && (
+  <div className={movieDetailHStyles.storyCard}>
+    <h2 className={movieDetailHStyles.storyTitle}>
+      Directors
+    </h2>
+
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+      {movie.directors.map((person, index) => (
+        <div
+          key={index}
+          className="bg-black/40 border border-red-500/20 rounded-2xl p-4 text-center hover:scale-105 transition-all duration-300"
+        >
+          <img
+            src={`${getApiBaseUrl()}/${person.avatarUrl}`}
+            alt={person.name}
+            className="w-28 h-28 rounded-full object-cover mx-auto border-4 border-red-500 shadow-lg shadow-red-500/30"
+          />
+
+          <h4 className="text-white mt-2">
+            {person.name}
+          </h4>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+{/* PRODUCERS */}
+{movie.producers?.length > 0 && (
+  <div className={movieDetailHStyles.storyCard}>
+    <h2 className={movieDetailHStyles.storyTitle}>
+      Producers
+    </h2>
+
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+      {movie.producers.map((person, index) => (
+        <div
+          key={index}
+          className="bg-black/40 border border-red-500/20 rounded-2xl p-4 text-center hover:scale-105 transition-all duration-300"
+        >
+          <img
+            src={`${getApiBaseUrl()}/${person.avatarUrl}`}
+            alt={person.name}
+            className="w-28 h-28 rounded-full object-cover mx-auto border-4 border-red-500 shadow-lg shadow-red-500/30"
+          />
+
+          <h4 className="text-white mt-2">
+            {person.name}
+          </h4>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
       </div>
     </div>
   );

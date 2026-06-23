@@ -97,7 +97,11 @@ const BookingsPage = () => {
             </div>
           ) : (
             bookings.map((booking) => {
-              const poster = booking.poster;
+              const poster = booking.poster
+              ? booking.poster.includes("uploads")
+              ? `http://localhost:5000/${booking.poster.replace(/^\/+/, "")}`
+              : booking.poster
+              : "";
               const isExpanded = expandedId === booking.bookingId;
               const qrValue = JSON.stringify({
                 bookingId: booking.bookingId,

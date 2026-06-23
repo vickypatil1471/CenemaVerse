@@ -174,7 +174,7 @@ const Footer = () => {
                     <Mail className={footerStyles.contactIcon} />
                   </div>
                   <span className={footerStyles.contactText}>
-                    jineshr101@gmail.com
+                    vickypatil1471@gmail.com
                   </span>
                 </li>
                 <li className={footerStyles.contactItem}>
@@ -182,7 +182,7 @@ const Footer = () => {
                     <Phone className={footerStyles.contactIcon} />
                   </div>
                   <span className={footerStyles.contactText}>
-                    +91 9207611706
+                    +91 7972204257
                   </span>
                 </li>
                 <li className={footerStyles.contactItem}>
@@ -190,7 +190,7 @@ const Footer = () => {
                     <MapPin className={footerStyles.contactIcon} />
                   </div>
                   <span className={footerStyles.contactText}>
-                    Kerala, India
+                    Kolhapur, India
                   </span>
                 </li>
               </ul>
@@ -203,12 +203,12 @@ const Footer = () => {
             <div className={footerStyles.designedBy}>
               <span className={footerStyles.designedByText}>Designed By</span>
               <a
-                href="https://github.com/Jineshraj"
+                href="https://github.com/vickypatil1471"
                 target="_blank"
                 className={footerStyles.designedByLink}
                 rel="noopener noreferrer"
               >
-                Jinesh R
+                Vicky
               </a>
             </div>
             {/*

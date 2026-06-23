@@ -55,7 +55,7 @@ const ContactsPage = () => {
     )}%0AMessage: ${encodeURIComponent(formData.message)}`;
 
     // Open WhatsApp with pre-filled message
-    window.open(`https://wa.me/9207611706?text=${whatsappMessage}`, "_blank");
+    window.open(`https://wa.me/7972204257?text=${whatsappMessage}`, "_blank");
 
     setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
   };
@@ -238,7 +238,7 @@ const ContactsPage = () => {
                         Booking Hotline
                       </h3>
                       <p className={contactStyles.contactDetail}>
-                        +91 9207611706
+                        +91 7972204257
                       </p>
                     </div>
                   </div>
@@ -252,10 +252,10 @@ const ContactsPage = () => {
                         Email Address
                       </h3>
                       <p className={contactStyles.contactDetail}>
-                        booking@cineplex.com
+                        vickybooking@cineplex.com
                       </p>
                       <p className={contactStyles.contactDetail}>
-                        support@cineplex.com
+                        vickysupport@cineplex.com
                       </p>
                     </div>
                   </div>
@@ -269,7 +269,7 @@ const ContactsPage = () => {
                         Main Theatre Location
                       </h3>
                       <p className={contactStyles.contactDetail}>
-                        123Cinema Street FilCity Mmbai FC400001 , +4 other
+                        Fortune Cinema, Ichalkaranji 416 143, +4 other
                         locations across the city
                       </p>
                     </div>
@@ -293,7 +293,7 @@ const ContactsPage = () => {
                 </p>
                 <div className="flex items-center">
                   <div className={contactStyles.emergencyHotline}>
-                    HOTLINE: +91 9207611706
+                    HOTLINE: +91 7972204257
                   </div>
                   <span className={contactStyles.emergencyNote}>
                     Available during showtimes

@@ -17,9 +17,3 @@ A modern, full-stack movie browsing and booking application built with the MERN 
 - **Database:** MongoDB (Coming Soon)
 - **Deployment:** Vercel / Render
 
-## 📦 Installation & Setup
-
-1. **Clone the repository:**
-   ```bash
-   git clone [https://github.com/Jineshraj/mern-movie-booking-app.git](https://github.com/Jineshraj/mern-movie-booking-app.git)
-   ```

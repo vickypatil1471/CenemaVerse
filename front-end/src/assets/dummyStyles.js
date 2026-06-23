@@ -1122,7 +1122,8 @@ export const signUpCSS = `
   /* Responsive adjustments */
   @media (max-width: 768px) {
     .grid-cols-2 {
-      grid-template-columns: 1fr;
+      grid-template-columns: 320px 1fr;
+align-items: start;
     }
   }
 `;
